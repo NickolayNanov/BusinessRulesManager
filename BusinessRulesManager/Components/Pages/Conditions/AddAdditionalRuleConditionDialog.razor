@@ -1,25 +1,16 @@
 ﻿@using System.ComponentModel.DataAnnotations
 @using BusinessRulesManager.RulesEngine
+
 @inject IDialogService DialogService
-<EditForm Model="@model" OnValidSubmit="onValidSubmit">
+
+<EditForm Model="@model" OnValidSubmit="OnValidSubmit">
     <DataAnnotationsValidator />
     <MudGrid>
         <MudItem xs="12" sm="7">
             <MudCard>
                 <MudCardContent>
-                    <MudSelect T="string"
-                               TextChanged="updatePropertyType"
-                               Label="Property Name"
-                               @bind-Value="model.PropertyName"
-                               For="@(() => model.PropertyName)"
-                               HelperText="Name of the property"
-                               AnchorOrigin="Origin.BottomCenter"
-                            >
-                            @foreach (var propertyName in DefinitionObjectType.GetProperties().Select(x => x.Name))
-                            {
-                                <MudSelectItem Value="@(propertyName)">@propertyName</MudSelectItem>
-                            }
-                    </MudSelect>
+                    <MudTextField Label="Property Name" HelperText="Name of the property"
+                                  @bind-Value="model.PropertyName" For="@(() => model.PropertyName)" />
                     <MudSelect 
                         T="Operator" 
                         Label="Operator" 
@@ -35,12 +26,12 @@
                             <MudSelectItem Value="@(Operator.LessThanOrEqualTo)">@Operator.LessThanOrEqualTo.ToString()</MudSelectItem>
                             <MudSelectItem Value="@(Operator.Between)">@Operator.Between.ToString()</MudSelectItem>
                             <MudSelectItem Value="@(Operator.In)">@Operator.In.ToString()</MudSelectItem>
-                    </MudSelect>
+                        </MudSelect>
 
                         <MudTextField Label="Value" HelperText="The value for the operation"
                                       @bind-Value="model.Value" For="@(() => model.Value)" />
 
-                        <MudTextField Disabled="true" Label="Data Type" HelperText="The DataType of the property"
+                        <MudTextField Label="Data Type" HelperText="The DataType of the property"
                                       @bind-Value="model.DataType" For="@(() => model.DataType)" />
 
                         <MudTextField Label="Min Value" HelperText="The Min Value for the property"
@@ -49,7 +40,7 @@
                         <MudTextField Label="Max Value" HelperText="The Max Value for the property"
                                       @bind-Value="model.MaxValue" For="@(() => model.MaxValue)" />
 
-                        <MudTextField Disabled="isValueListFieldHidden()" Label="List Values" HelperText="Any helper values split with a comma; eg: 1, 2, 3, ... ,n  (mainly for in operations)"
+                        <MudTextField Label="List Values" HelperText="Any helper values split with a comma; eg: 1, 2, 3, ... ,n  (mainly for in operations)"
                                       @bind-Value="model.ValuesList" For="@(() => model.ValuesList)" />
 
                         <MudSelect T="LogicalOperator"
@@ -62,7 +53,7 @@
                         </MudSelect>
                 </MudCardContent>
                 <MudCardActions>
-                        <MudButton OnClick="handleAddAdditionalConditionClick" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add Additional Conditions(@model.AdditionalConditions.Count)</MudButton>
+                        <MudButton Disabled="true" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add Additional Conditions</MudButton>
                         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add</MudButton>
                 </MudCardActions>
             </MudCard>
@@ -96,69 +87,20 @@
 
     [Parameter] public Action<Condition, Condition> AddAdditionalConditiont { get; set; }
 
-    [Parameter] public Type DefinitionObjectType { get; set; }
+    [Parameter] public Condition ParentCondition { get; set; }
 
-    private Condition model = new Condition();
-    private Condition additionalCondition = new Condition();
-    private Type PropertyType;
-    private bool success;
+    Condition model = new Condition();
+    Condition additionalCondition = new Condition();
+    bool success;
 
-    private void updatePropertyType(string newPropertyName)
-    {
-        PropertyType = DefinitionObjectType.GetProperty(newPropertyName).PropertyType;
-        model.DataType = PropertyType.Name;
-    }
-
-    private async Task onValidSubmit(EditContext context)
+    private void OnValidSubmit(EditContext context)
     {
         success = true;
-        var conditionToAdd = (Condition)context.Model;
+        var cond = (Condition)context.Model;
 
-        conditionToAdd.DataType = PropertyType.Name;
-
-        await AddNewlyCreatedCondition.InvokeAsync(conditionToAdd);
+        AddAdditionalConditiont.Invoke(ParentCondition, cond);
 
         StateHasChanged();
         MudDialog.Close();
-    }
-
-    private bool isValueFieldHidden()
-    {
-        var disabled = new List<Operator>
-        {
-            Operator.Between,
-            Operator.In
-        };
-
-        return disabled.Contains(model.Operator);
-    }
-
-    private bool isValueListFieldHidden()
-    {
-        var disabled = new List<Operator>
-        {
-            Operator.In
-        };
-
-        return !disabled.Contains(model.Operator);
-    }
-
-    private void addAdditionalConditiontWrapper(Condition source, Condition newCondition)
-    {
-        AddAdditionalConditiont.Invoke(source, newCondition);
-        StateHasChanged();
-    }
-
-    private void handleAddAdditionalConditionClick()
-    {
-        DialogParameters<AddAdditionalRuleConditionDialog> parameters = new();
-
-        parameters.Add(x => x.AddNewlyCreatedCondition, AddNewlyCreatedCondition);
-        parameters.Add(x => x.AddAdditionalConditiont, addAdditionalConditiontWrapper);
-        parameters.Add(x => x.ParentCondition, model);
-
-        var options = new DialogOptions { CloseOnEscapeKey = true };
-
-        DialogService.Show<AddAdditionalRuleConditionDialog>("Add additional condition", parameters, options);
     }
 }

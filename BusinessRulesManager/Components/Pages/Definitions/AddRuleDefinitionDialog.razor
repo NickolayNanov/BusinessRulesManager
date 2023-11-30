@@ -1,0 +1,91 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using BusinessRulesManager.Models
+@using BusinessRulesManager.RulesEngine
+@using System.Reflection
+
+@inject IDialogService DialogService
+
+@if (!ready)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="@model" OnValidSubmit="onValidSubmit">
+        <DataAnnotationsValidator />
+        <MudGrid>
+            <MudItem xs="12" sm="7">
+                <MudCard>
+                    <MudCardContent>
+                        <MudTextField Label="Name" HelperText="Name of the rule definition"
+                                      @bind-Value="model.Name" For="@(() => model.Name)" />
+
+                        <MudTextField Label="Description" HelperText="Description for the rule definition"
+                                      @bind-Value="model.Description" For="@(() => model.Description)" />
+
+                        <MudSelect T="string"
+                                   Label="Object Type"
+                                   @bind-Value="model.ObjectType"
+                                   For="@(() => model.ObjectType)"
+                                   AnchorOrigin="Origin.BottomCenter">
+                                @foreach (var type in supportedTypes)
+                            {
+                                <MudSelectItem Value="@(type.Name)">@type.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="5">
+                <MudPaper Class="pa-4 mud-height-full">
+                    <MudText Typo="Typo.subtitle2">Validation Summary</MudText>
+                    @if (success)
+                    {
+                        <MudText Color="Color.Success">Success</MudText>
+                    }
+                    else
+                    {
+                        <MudText Color="@Color.Error">
+                            <ValidationSummary />
+                        </MudText>
+                    }
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12">
+                <MudText Typo="Typo.body2" Align="Align.Center">
+                    Make sure you order them
+                </MudText>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+}
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public EventCallback<BusinessRuleDefinition> AddNewlyCreatedDefinition { get; set; }
+
+    private BusinessRuleDefinition model = new BusinessRuleDefinition();
+    private IEnumerable<Type> supportedTypes;
+    private bool success;
+    private bool ready;
+
+    protected override void OnInitialized()
+    {
+        supportedTypes = Assembly.GetExecutingAssembly().GetTypes()
+                 .Where(mytype => mytype.GetInterfaces().Contains(typeof(IRulesEngineModel))).ToList();
+
+        ready = true;
+        base.OnInitialized();
+    }
+
+    private async Task onValidSubmit(EditContext context)
+    {
+        success = true;
+        await AddNewlyCreatedDefinition.InvokeAsync((BusinessRuleDefinition)context.Model);
+        MudDialog.Close();
+    }
+}

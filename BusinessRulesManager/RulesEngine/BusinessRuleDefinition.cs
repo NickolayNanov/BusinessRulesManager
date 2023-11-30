@@ -13,6 +13,9 @@ namespace BusinessRulesManager.RulesEngine
         [MinLength(3)]
         public string Name { get; set; }
 
+        [Required]
+        public string ObjectType { get; set; }
+
         public List<Condition> Conditions { get; set; }
     }
 }

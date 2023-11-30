@@ -4,12 +4,14 @@
 
 @using BusinessRulesManager.RulesEngine
 @using BusinessRulesManager.Services;
+@using System.Reflection
 
-@inject IBasicCrudService<BusinessRuleDefinition, int> crudService;
+@inject IBasicCrudService<BusinessRuleDefinition, int> businessRuleDefinitionService;
+@inject IBasicCrudService<Condition, int> conditionService;
 @inject IDialogService DialogService
 @inject ILambdaService lambdaService
 
-@if (conditions is null)
+@if (conditions is null && definition is not null)
 {
     <p><em>Loading...</em></p>
 }
@@ -25,6 +27,7 @@ else
             <MudPaper Class="d-flex align-right justify-center mud-width-full py-8">
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="handleAddNewClick">Add New</MudButton>
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="handleGenerateLambdaClick">Generate Lambda Expression</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="saveDefinition">Save</MudButton>
             </MudPaper>
         </MudItem>
         
@@ -41,6 +44,7 @@ else
             <MudTh>MaxValue</MudTh>
             <MudTh>ValuesList</MudTh>
             <MudTh>LogicalOperator</MudTh>
+            <MudTh>Action</MudTh>
         </HeaderContent>
 
         <RowTemplate>
@@ -52,6 +56,9 @@ else
                 <MudTd DataLabel="Name">@context.MaxValue</MudTd>
                 <MudTd DataLabel="Name">@context.ValuesList</MudTd>
                 <MudTd DataLabel="Name">@context.LogicalOperator</MudTd>
+                <MudTd DataLabel="Name">
+                    <MudButton OnClick="() => handleRemoveCondition(context)" Variant="Variant.Filled" Color="Color.Warning">Remove</MudButton>
+                </MudTd>
             </RowTemplate>
 
         </MudTable>
@@ -61,31 +68,43 @@ else
     
 }
 
-
 @code {
     [Parameter]
     public int IdRuleDefinition { get; set; }
 
     private MudTable<Condition> mudTable;
     private List<Condition> conditions = new List<Condition>();
+    private Type objectType;
     private BusinessRuleDefinition definition;
     private string lambda;
     private int selectedRowNumber = -1;
 
     protected override async Task OnInitializedAsync()
     {
-        definition = await this.crudService.GetByIdAsync(IdRuleDefinition);
-        // conditions = definition.Conditions;
+        definition = await this.businessRuleDefinitionService.GetByIdAsync(IdRuleDefinition);
+        conditions = definition.Conditions ?? new();
+        objectType = Assembly.GetExecutingAssembly().GetTypes().FirstOrDefault(x => x.Name == definition.ObjectType);
 
         await base.OnInitializedAsync();
     }
 
+    private void saveDefinition()
+    {
+        businessRuleDefinitionService.UpdateAsync(definition);
+    }
+
+    private void handleRemoveCondition(Condition condition)
+    {
+        definition.Conditions.Remove(condition);
+    }
+
     private void handleAddNewClick()
     {
-        DialogParameters parameters = new()
-        {
-                ["AddNewlyCreatedCondition"] = addNewlyCreatedCondition
-        };
+        DialogParameters<AddRuleConditionDialog> parameters = new();
+
+        parameters.Add(x => x.AddNewlyCreatedCondition, EventCallback.Factory.Create<Condition>(this, addNewlyCreatedCondition));
+        parameters.Add(x => x.AddAdditionalConditiont, addAdditionalCondition);
+        parameters.Add(x => x.DefinitionObjectType, objectType);
 
         var options = new DialogOptions { CloseOnEscapeKey = true };
 
@@ -114,15 +133,22 @@ else
         }
     }
 
-    private void addNewlyCreatedCondition(Condition condition)
+    private async Task addNewlyCreatedCondition(Condition condition)
     {
-        conditions.Add(condition); 
+        condition.Priority = conditions.Count == 0 ? 1 : conditions.Last().Priority + 1;
+        conditions.Add(condition);
+        await conditionService.CreateAsync(condition);
+        StateHasChanged();
+    }
+
+    private void addAdditionalCondition(Condition parentCondition, Condition additionalCondition)
+    {
+        parentCondition.AdditionalConditions.Add(additionalCondition);
         StateHasChanged();
     }
 
     private void handleGenerateLambdaClick()
     {
-        
         lambda = lambdaService.CreateLambda(new BusinessRuleDefinition { Name = "ASD", Conditions = conditions  });
     }
 }

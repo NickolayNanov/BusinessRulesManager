@@ -6,13 +6,22 @@ namespace BusinessRulesManager.RulesEngine
 {
     public class RulesEngine
     {
-        private readonly ConcurrentDictionary<string, Func<object, bool>> cache = new ConcurrentDictionary<string, Func<object, bool>>();
+        private readonly Dictionary<string, Func<object, bool>> cache = new();
 
         public Func<object, bool> BuildRule<T>(List<Condition> conditions)
         {
             string ruleKey = GetRuleKey(conditions);
 
-            return cache.GetOrAdd(ruleKey, key => CompileRule<T>(conditions));
+            if (cache.TryGetValue(ruleKey, out var func))
+            {
+                return func;
+            }
+            else
+            {
+                cache[ruleKey] = CompileRule<T>(conditions);
+            }
+            
+            return cache[ruleKey];
         }
 
         private string GetRuleKey(List<Condition> conditions)
@@ -33,7 +42,7 @@ namespace BusinessRulesManager.RulesEngine
 
                 Expression binaryExpr = BuildExpressionForCondition<T>(castedParameter, condition);
 
-                if (condition.AdditionalConditions != null && condition.AdditionalConditions.Any())
+                if (condition.AdditionalConditions != null && condition.AdditionalConditions.Count != 0)
                 {
                     List<Expression> additionalExpressions
                     = condition.AdditionalConditions.Select(cond => BuildExpressionForCondition<T>(castedParameter, cond)).ToList();

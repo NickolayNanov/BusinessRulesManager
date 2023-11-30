@@ -6,11 +6,10 @@
 @using BusinessRulesManager.Services;
 
 @inject IBasicCrudService<BusinessRuleDefinition, int> crudService;
+@inject IDialogService DialogService
 @inject NavigationManager navManager
 
 <PageTitle>Rule Definitions</PageTitle>
-
-<h1>Rule definitions</h1>
 
 @if (ruleDefinitions == null)
 {
@@ -18,6 +17,20 @@
 }
 else
 {
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudPaper Class="d-flex align-center justify-center mud-width-full py-8">
+                <h3>Business Rule Definitions</h3>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudPaper Class="d-flex align-right justify-center mud-width-full py-8">
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="handleAddNewClick">Add New</MudButton>
+            </MudPaper>
+        </MudItem>
+
+    </MudGrid>
+
     <MudTable T="BusinessRuleDefinition" Items="@ruleDefinitions" Hover="true" Breakpoint="Breakpoint.Sm" @ref="mudTable"
               RowClass="cursor-pointer" RowClassFunc="@SelectedRowClassFunc" OnRowClick="RowClickEvent">
 
@@ -25,6 +38,7 @@ else
             <MudTh>Id</MudTh>
             <MudTh>Name</MudTh>
             <MudTh>Description</MudTh>
+            <MudTh>Object Type</MudTh>
             <MudTh>Conditions</MudTh>
         </HeaderContent>
 
@@ -32,8 +46,9 @@ else
             <MudTd DataLabel="Nr">@context.Id</MudTd>
                 <MudTd DataLabel="Sign">@context.Name</MudTd>
                 <MudTd DataLabel="Name">@context.Description</MudTd>
+                <MudTd DataLabel="Name">@context.ObjectType</MudTd>
                 <MudTd DataLabel="Name">
-                    <MudButton Color="Color.Primary" OnClick="@(() => handleOnClick(context.Id))">Open</MudButton>
+                    <MudButton Color="Color.Primary" OnClick="@(() => handleOpenConditionsClick(context.Id))">Open</MudButton>
                 </MudTd>
         </RowTemplate>
 
@@ -51,9 +66,21 @@ else
         await base.OnInitializedAsync();
     }
 
-    private void handleOnClick(int id)
+    private void handleOpenConditionsClick(int id)
     {
         navManager.NavigateTo($"/rule-definitions/{id}/conditions");
+    }
+
+    private async Task addNewlyCreatedDefinition(BusinessRuleDefinition definition)
+    {
+        await crudService.CreateAsync(definition);
+        ruleDefinitions.Add(definition);
+        StateHasChanged();
+    }
+
+    private void SaveDefinition(BusinessRuleDefinition definition)
+    {
+        crudService.UpdateAsync(definition);
     }
 
     private void RowClickEvent(TableRowClickEventArgs<BusinessRuleDefinition> tableRowClickEventArgs)
@@ -76,5 +103,17 @@ else
         {
             return string.Empty;
         }
+    }
+
+    private void handleAddNewClick()
+    {
+        DialogParameters<AddRuleDefinitionDialog> parameters = new();
+
+        parameters.Add(x => x.AddNewlyCreatedDefinition, 
+            EventCallback.Factory.Create<BusinessRuleDefinition>(this, addNewlyCreatedDefinition));
+
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+
+        DialogService.Show<AddRuleDefinitionDialog>("Add new business rule definition", parameters, options);
     }
 }

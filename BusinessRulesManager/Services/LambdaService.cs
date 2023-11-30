@@ -1,6 +1,8 @@
-﻿using BusinessRulesManager.RulesEngine;
+﻿using BusinessRulesManager.Models;
+using BusinessRulesManager.RulesEngine;
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace BusinessRulesManager.Services
 {
@@ -11,10 +13,14 @@ namespace BusinessRulesManager.Services
 
     public class LambdaService : ILambdaService
     {
-        private readonly ConcurrentDictionary<string, Func<object, bool>> cache = new ConcurrentDictionary<string, Func<object, bool>>();
+        private readonly Dictionary<string, Func<object, bool>> cache = new();
 
         public string CreateLambda(BusinessRuleDefinition businessRuleDefinition)
         {
+            var types =
+                Assembly.GetExecutingAssembly().GetTypes()
+                 .Where(mytype => mytype.GetInterfaces().Contains(typeof(IRulesEngineModel))).ToList();
+
             Expression<Func<object, bool>> lambda = CreateLambdaExpression<Account>(businessRuleDefinition.Conditions);
 
             var visitor = new ExpressionToStringVisitor();
@@ -24,17 +30,25 @@ namespace BusinessRulesManager.Services
         }
 
         // should be used directly or idk
-        public Func<object, bool> BuildRule<T>(List<Condition> conditions)
+        public Func<object, bool> BuildRule<T>(BusinessRuleDefinition definition, string identifier)
         {
-            string ruleKey = GetRuleKey(conditions);
+            string ruleKey = GetRuleKey(definition, identifier);
 
-            return cache.GetOrAdd(ruleKey, key => CompileRule<T>(conditions));
+            if (cache.TryGetValue(ruleKey, out var func)) 
+            {
+                return func;
+            }
+            else
+            {
+                cache[ruleKey] = CompileRule<T>(definition.Conditions);
+            }
+
+            return cache[ruleKey];
         }
 
-        private string GetRuleKey(List<Condition> conditions)
+        private string GetRuleKey(BusinessRuleDefinition definition, string identifier)
         {
-            // Concatenate rule properties to form a unique key
-            return string.Join(";", conditions.Select(r => $"{r.PropertyName}-{r.Operator}-{r.Id}"));
+            return $"{identifier}-{definition.Id}-{definition.Name}-{definition.Conditions.Count}";
         }
 
         private Func<object, bool> CompileRule<T>(List<Condition> conditions)
@@ -46,16 +60,26 @@ namespace BusinessRulesManager.Services
         private Expression<Func<object, bool>> CreateLambdaExpression<T>(List<Condition> conditions)
         {
             var parameter = Expression.Parameter(typeof(object), "x");
-            UnaryExpression castedParameter = Expression.Convert(parameter, typeof(T));
+            var castedParameter = Expression.Convert(parameter, typeof(T));
             Expression expr = null;
-
-            foreach (var condition in conditions)
+            LogicalOperator logcalOperator;
+            foreach (var condition in conditions.OrderBy(x => x.Priority))
             {
                 ValidateCondition<T>(condition); // Validate each rule
 
                 Expression binaryExpr = BuildExpressionForCondition<T>(castedParameter, condition);
+                var op = condition.LogicalOperator;
+                
+                if (conditions.IndexOf(condition) == 0)
+                {
+                    logcalOperator = condition.LogicalOperator;
+                }
+                else
+                {
+                    logcalOperator = conditions.Where(c => c.Priority < condition.Priority).OrderBy(x => x.Priority).Last().LogicalOperator;
+                }
 
-                if (condition.AdditionalConditions != null && condition.AdditionalConditions.Any())
+                if (condition.AdditionalConditions != null && condition.AdditionalConditions.Count != 0)
                 {
                     List<Expression> additionalExpressions
                     = condition.AdditionalConditions.Select(cond => BuildExpressionForCondition<T>(castedParameter, cond)).ToList();
@@ -72,7 +96,7 @@ namespace BusinessRulesManager.Services
                 }
                 else
                 {
-                    expr = condition.LogicalOperator == LogicalOperator.AND ?
+                    expr = logcalOperator == LogicalOperator.AND ?
                            Expression.AndAlso(expr, binaryExpr) :
                            Expression.OrElse(expr, binaryExpr);
                 }
@@ -82,69 +106,61 @@ namespace BusinessRulesManager.Services
             return lambda;
         }
 
-        private Expression BuildExpressionForCondition<T>(Expression parameter, Condition rule)
+        private Expression BuildExpressionForCondition<T>(Expression parameter, Condition condition)
         {
-            var member = Expression.Property(parameter, rule.PropertyName);
-            var targetType = member.Type;
+            var member = Expression.Property(parameter, condition.PropertyName);
+            var convertedValue = ConvertToType(condition.Value, member.Type);
 
-            object value = ConvertToType(rule.Value, targetType);
-            object minValue = ConvertToType(rule.MinValue, targetType);
-            object maxValue = ConvertToType(rule.MaxValue, targetType);
-
-            Expression left = null, right = null;
-
-            if (minValue != null)
-                left = Expression.GreaterThanOrEqual(member, Expression.Constant(minValue));
-
-            if (maxValue != null)
-                right = Expression.LessThanOrEqual(member, Expression.Constant(maxValue));
-
-            if (left != null && right != null)
-                return Expression.AndAlso(left, right);
-
-            switch (rule.Operator)
+            return condition.Operator switch
             {
-                case Operator.GreaterThan:
-                    return Expression.GreaterThan(member, Expression.Constant(value));
-                case Operator.GreaterThanOrEqualTo:
-                    return Expression.GreaterThanOrEqual(member, Expression.Constant(value));
-                case Operator.LessThan:
-                    return Expression.LessThan(member, Expression.Constant(value));
-                case Operator.LessThanOrEqualTo:
-                    return Expression.LessThanOrEqual(member, Expression.Constant(value));
-                case Operator.Equals:
-                    return Expression.Equal(member, Expression.Constant(value));
-                case Operator.In:
-                    var values = rule.ValuesList.Split(", ").ToList().ConvertAll(value => ConvertToType(value, targetType));
-                    return BuildInExpression(member, values);
-                case Operator.Between:
-                    return BuildBetweenExpression(member, minValue, maxValue);
-            }
-
-            return left ?? right;
+                Operator.GreaterThan => Expression.GreaterThan(member, Expression.Constant(convertedValue)),
+                Operator.GreaterThanOrEqualTo => Expression.GreaterThanOrEqual(member, Expression.Constant(convertedValue)),
+                Operator.LessThan => Expression.LessThan(member, Expression.Constant(convertedValue)),
+                Operator.LessThanOrEqualTo => Expression.LessThanOrEqual(member, Expression.Constant(convertedValue)),
+                Operator.Equals => Expression.Equal(member, Expression.Constant(convertedValue)),
+                Operator.In => BuildInExpression(member, condition),
+                Operator.Between => BuildBetweenExpression(member, condition),
+                _ => null,
+            };
         }
 
-        private Expression BuildInExpression(MemberExpression member, List<object> values)
+        private BinaryExpression BuildInExpression(MemberExpression member, Condition condition)
         {
+            var values = condition.ValuesList.Split(", ").ToList().ConvertAll(value => ConvertToType(value, member.Type));
+
             var equalsExpressions = values.Select(value => Expression.Equal(member, Expression.Constant(value)));
             return equalsExpressions.Aggregate((current, next) => Expression.OrElse(current, next));
         }
 
-        private Expression BuildBetweenExpression(MemberExpression member, object minValue, object maxValue)
+        private BinaryExpression BuildBetweenExpression(MemberExpression member, Condition condition)
         {
-            var greaterThanMin = Expression.GreaterThanOrEqual(member, Expression.Constant(minValue));
-            var lessThanMax = Expression.LessThanOrEqual(member, Expression.Constant(maxValue));
+            object convertedMinValue = ConvertToType(condition.MinValue, member.Type);
+            object ConvertedMaxValue = ConvertToType(condition.MaxValue, member.Type);
+
+            Expression left = null, right = null;
+
+            if (convertedMinValue != null)
+                left = Expression.GreaterThanOrEqual(member, Expression.Constant(convertedMinValue));
+
+            if (ConvertedMaxValue != null)
+                right = Expression.LessThanOrEqual(member, Expression.Constant(ConvertedMaxValue));
+
+            if (left != null && right != null)
+                return Expression.AndAlso(left, right);
+
+            var greaterThanMin = Expression.GreaterThanOrEqual(member, Expression.Constant(convertedMinValue));
+            var lessThanMax = Expression.LessThanOrEqual(member, Expression.Constant(ConvertedMaxValue));
+
             return Expression.AndAlso(greaterThanMin, lessThanMax);
         }
 
-        private void ValidateCondition<T>(Condition rule)
+        private void ValidateCondition<T>(Condition condition)
         {
-            if (string.IsNullOrEmpty(rule.PropertyName))
-                throw new InvalidOperationException("Rule property name is required.");
+            if (string.IsNullOrEmpty(condition.PropertyName))
+                throw new InvalidOperationException("Condition property name is required.");
 
-            var propertyInfo = typeof(T).GetProperty(rule.PropertyName);
-            if (propertyInfo == null)
-                throw new InvalidOperationException($"Property {rule.PropertyName} not found in type {typeof(T).Name}.");
+            var propertyInfo
+                = typeof(T).GetProperty(condition.PropertyName) ?? throw new InvalidOperationException($"Property {condition.PropertyName} not found in type {typeof(T).Name}.");
         }
 
         private object ConvertToType(string value, Type targetType)
@@ -164,30 +180,8 @@ namespace BusinessRulesManager.Services
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException("Error converting value", ex);
+                throw new InvalidOperationException($"Error converting value: {value} to type: {targetType.ToString()}", ex);
             }
         }
     }
-
-    public class Account
-    {
-        public decimal Balance { get; set; }
-        public DateTime CreationDate { get; set; }
-        public bool IsActive { get; set; }
-        public AccountType AccountType { get; set; }
-        public int TransactionCount { get; set; }
-        public int CreditScore { get; set; }
-        public decimal LastTransactionAmount { get; set; }
-        public int AccountAgeInYears { get; set; }
-        public int NumberOfOverdrafts { get; set; }
-        public decimal AverageMonthlyDeposit { get; set; }
-    }
-
-
-    public enum AccountType
-    {
-        Savings,
-        Checking
-    }
-
 }

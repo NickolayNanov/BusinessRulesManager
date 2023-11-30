@@ -14,14 +14,17 @@ namespace BusinessRulesManager.RulesEngine
         [Required]
         public string Value { get; set; }
 
+        [Required]
+        public string DataType { get; set; }
+
+        [Required]
+        public int Priority { get; set; }
+
         public LogicalOperator LogicalOperator { get; set; }
 
         public string MinValue { get; set; }
 
         public string MaxValue { get; set; }
-
-        [Required]
-        public string DataType { get; set; }
 
         public string ValuesList { get; set; }
 
@@ -33,10 +36,7 @@ namespace BusinessRulesManager.RulesEngine
 
         public BusinessRuleDefinition BusinessRuleDefinition { get; set; }
 
-        [Required]
-        public int Priority { get; set; }
-
-        public List<Condition> AdditionalConditions { get; set; }
+        public List<Condition> AdditionalConditions { get; set; } = new List<Condition>();
     }
 
     public enum Operator
