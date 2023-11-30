@@ -1,0 +1,128 @@
+﻿@page "/rule-definitions/{idRuleDefinition:int}/conditions"
+
+@attribute [StreamRendering]
+
+@using BusinessRulesManager.RulesEngine
+@using BusinessRulesManager.Services;
+
+@inject IBasicCrudService<BusinessRuleDefinition, int> crudService;
+@inject IDialogService DialogService
+@inject ILambdaService lambdaService
+
+@if (conditions is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudPaper Class="d-flex align-center justify-center mud-width-full py-8">
+                <h3>RuleConditions for @definition.Name</h3>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudPaper Class="d-flex align-right justify-center mud-width-full py-8">
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="handleAddNewClick">Add New</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="handleGenerateLambdaClick">Generate Lambda Expression</MudButton>
+            </MudPaper>
+        </MudItem>
+        
+    </MudGrid>
+    <MudTable T="Condition" Items="@conditions" Hover="true" Breakpoint="Breakpoint.Sm" @ref="mudTable"
+              RowClass="cursor-pointer" RowClassFunc="@SelectedRowClassFunc" OnRowClick="RowClickEvent">
+
+        <HeaderContent>
+            <MudTh>PropertyName</MudTh>
+            <MudTh>Operator</MudTh>
+            <MudTh>Value</MudTh>
+            <MudTh>DataType</MudTh>
+            <MudTh>MinValue</MudTh>
+            <MudTh>MaxValue</MudTh>
+            <MudTh>ValuesList</MudTh>
+            <MudTh>LogicalOperator</MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd DataLabel="Nr">@context.PropertyName</MudTd>
+                <MudTd DataLabel="Sign">@context.Operator</MudTd>
+                <MudTd DataLabel="Name">@context.Value</MudTd>
+                <MudTd DataLabel="Name">@context.DataType</MudTd>
+                <MudTd DataLabel="Name">@context.MinValue</MudTd>
+                <MudTd DataLabel="Name">@context.MaxValue</MudTd>
+                <MudTd DataLabel="Name">@context.ValuesList</MudTd>
+                <MudTd DataLabel="Name">@context.LogicalOperator</MudTd>
+            </RowTemplate>
+
+        </MudTable>
+
+    <h3>Lambda:</h3>
+    <p>@lambda</p>
+    
+}
+
+
+@code {
+    [Parameter]
+    public int IdRuleDefinition { get; set; }
+
+    private MudTable<Condition> mudTable;
+    private List<Condition> conditions = new List<Condition>();
+    private BusinessRuleDefinition definition;
+    private string lambda;
+    private int selectedRowNumber = -1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        definition = await this.crudService.GetByIdAsync(IdRuleDefinition);
+        // conditions = definition.Conditions;
+
+        await base.OnInitializedAsync();
+    }
+
+    private void handleAddNewClick()
+    {
+        DialogParameters parameters = new()
+        {
+                ["AddNewlyCreatedCondition"] = addNewlyCreatedCondition
+        };
+
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+
+        DialogService.Show<AddRuleConditionDialog>("Add new condition", parameters, options);
+    }
+
+    private void RowClickEvent(TableRowClickEventArgs<Condition> tableRowClickEventArgs)
+    {
+    }
+
+    private string SelectedRowClassFunc(Condition element, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (mudTable.SelectedItem != null && mudTable.SelectedItem.Equals(element))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void addNewlyCreatedCondition(Condition condition)
+    {
+        conditions.Add(condition); 
+        StateHasChanged();
+    }
+
+    private void handleGenerateLambdaClick()
+    {
+        
+        lambda = lambdaService.CreateLambda(new BusinessRuleDefinition { Name = "ASD", Conditions = conditions  });
+    }
+}

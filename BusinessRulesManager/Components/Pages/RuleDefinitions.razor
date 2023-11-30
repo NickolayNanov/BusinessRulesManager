@@ -1,0 +1,80 @@
+﻿@page "/rule-definitions"
+
+@attribute [StreamRendering]
+
+@using BusinessRulesManager.RulesEngine
+@using BusinessRulesManager.Services;
+
+@inject IBasicCrudService<BusinessRuleDefinition, int> crudService;
+@inject NavigationManager navManager
+
+<PageTitle>Rule Definitions</PageTitle>
+
+<h1>Rule definitions</h1>
+
+@if (ruleDefinitions == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <MudTable T="BusinessRuleDefinition" Items="@ruleDefinitions" Hover="true" Breakpoint="Breakpoint.Sm" @ref="mudTable"
+              RowClass="cursor-pointer" RowClassFunc="@SelectedRowClassFunc" OnRowClick="RowClickEvent">
+
+        <HeaderContent>
+            <MudTh>Id</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Conditions</MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd DataLabel="Nr">@context.Id</MudTd>
+                <MudTd DataLabel="Sign">@context.Name</MudTd>
+                <MudTd DataLabel="Name">@context.Description</MudTd>
+                <MudTd DataLabel="Name">
+                    <MudButton Color="Color.Primary" OnClick="@(() => handleOnClick(context.Id))">Open</MudButton>
+                </MudTd>
+        </RowTemplate>
+
+    </MudTable>
+}
+
+@code {
+    private IList<BusinessRuleDefinition> ruleDefinitions;
+    private MudTable<BusinessRuleDefinition> mudTable;
+    private int selectedRowNumber = -1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ruleDefinitions = await crudService.ListAsync();
+        await base.OnInitializedAsync();
+    }
+
+    private void handleOnClick(int id)
+    {
+        navManager.NavigateTo($"/rule-definitions/{id}/conditions");
+    }
+
+    private void RowClickEvent(TableRowClickEventArgs<BusinessRuleDefinition> tableRowClickEventArgs)
+    {
+    }
+
+    private string SelectedRowClassFunc(BusinessRuleDefinition element, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (mudTable.SelectedItem != null && mudTable.SelectedItem.Equals(element))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+}

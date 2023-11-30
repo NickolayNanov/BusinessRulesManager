@@ -1,0 +1,96 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using BusinessRulesManager.RulesEngine
+
+<EditForm Model="@model" OnValidSubmit="OnValidSubmit">
+    <DataAnnotationsValidator />
+    <MudGrid>
+        <MudItem xs="12" sm="7">
+            <MudCard>
+                <MudCardContent>
+                    <MudTextField Label="Property Name" HelperText="Name of the property"
+                                  @bind-Value="model.PropertyName" For="@(() => model.PropertyName)" />
+                    <MudSelect 
+                        T="Operator" 
+                        Label="Operator" 
+                        @bind-Value="model.Operator" 
+                        For="@(() => model.Operator)" 
+                        AnchorOrigin="Origin.BottomCenter"
+                        >
+                        <MudSelectItem Value="@(Operator.NotEqualTo)">@Operator.NotEqualTo.ToString()</MudSelectItem>
+                            <MudSelectItem Value="@(Operator.Equals)">@Operator.Equals.ToString()</MudSelectItem>
+                            <MudSelectItem Value="@(Operator.GreaterThan)">@Operator.GreaterThan.ToString()</MudSelectItem>
+                            <MudSelectItem Value="@(Operator.GreaterThanOrEqualTo)">@Operator.GreaterThanOrEqualTo.ToString()</MudSelectItem>
+                            <MudSelectItem Value="@(Operator.LessThan)">@Operator.LessThan.ToString()</MudSelectItem>
+                            <MudSelectItem Value="@(Operator.LessThanOrEqualTo)">@Operator.LessThanOrEqualTo.ToString()</MudSelectItem>
+                            <MudSelectItem Value="@(Operator.LessThanOrEqualTo)">@Operator.Between.ToString()</MudSelectItem>
+                            <MudSelectItem Value="@(Operator.LessThanOrEqualTo)">@Operator.In.ToString()</MudSelectItem>
+                        </MudSelect>
+
+                        <MudTextField Label="Value" HelperText="The value for the operation"
+                                      @bind-Value="model.Value" For="@(() => model.Value)" />
+
+                        <MudTextField Label="Data Type" HelperText="The DataType of the property"
+                                      @bind-Value="model.DataType" For="@(() => model.DataType)" />
+
+                        <MudTextField Label="Min Value" HelperText="The Min Value for the property"
+                                      @bind-Value="model.MinValue" For="@(() => model.MinValue)" />
+
+                        <MudTextField Label="Max Value" HelperText="The Max Value for the property"
+                                      @bind-Value="model.MaxValue" For="@(() => model.MaxValue)" />
+
+                        <MudTextField Label="List Values" HelperText="Any helper values split with a comma; eg: 1, 2, 3, ... ,n  (mainly for in operations)"
+                                      @bind-Value="model.ValuesList" For="@(() => model.ValuesList)" />
+
+                        <MudSelect T="LogicalOperator"
+                                   Label="Logical Operator"
+                                   @bind-Value="model.LogicalOperator"
+                                   For="@(() => model.LogicalOperator)"
+                                   AnchorOrigin="Origin.BottomCenter">
+                            <MudSelectItem Value="@(LogicalOperator.OR)">@LogicalOperator.OR.ToString()</MudSelectItem>
+                            <MudSelectItem Value="@(LogicalOperator.AND)">@LogicalOperator.AND.ToString()</MudSelectItem>
+                        </MudSelect>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add New</MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="5">
+            <MudPaper Class="pa-4 mud-height-full">
+                <MudText Typo="Typo.subtitle2">Validation Summary</MudText>
+                @if (success)
+                {
+                    <MudText Color="Color.Success">Success</MudText>
+                }
+                else
+                {
+                    <MudText Color="@Color.Error">
+                        <ValidationSummary />
+                    </MudText>
+                }
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12">
+            <MudText Typo="Typo.body2" Align="Align.Center">
+                Make sure you order them
+            </MudText>
+        </MudItem>
+    </MudGrid>
+</EditForm>
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public Action<Condition> AddNewlyCreatedCondition { get; set; }
+
+    Condition model = new Condition();
+    bool success;
+
+    private void OnValidSubmit(EditContext context)
+    {
+        success = true;
+        AddNewlyCreatedCondition.Invoke((Condition)context.Model);
+        StateHasChanged();
+        MudDialog.Close();
+    }
+
+}

@@ -1,0 +1,64 @@
+﻿@page "/"
+@using BusinessRulesManager.RulesEngine
+@using BusinessRulesManager.Services
+
+@inject IBasicCrudService<BusinessRuleDefinition, int> service;
+
+<PageTitle>Home</PageTitle>
+
+<h1>Hello, world!</h1>
+
+Welcome to your new app.
+
+<MudButton OnClick="SeedData">Seed data</MudButton>
+
+@code {
+    private async Task SeedData()
+    {
+        service.RawQuery("delete from dbo.BusinessRuleDefinitions delete from dbo.Conditions");
+
+        var businessRuleDefinition = new BusinessRuleDefinition
+            {
+                Name = "Test Name",
+                Description = "Test Description",
+                Conditions = new List<Condition>
+                    {
+                        new Condition { PropertyName = "Balance", Operator = Operator.GreaterThan, Value = "100", DataType = "decimal", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "Balance", Operator = Operator.LessThan, Value = "10000", DataType = "decimal", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "IsActive", Operator = Operator.Equals, Value = "True", DataType = "bool", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "AccountType", Operator = Operator.In, Value = "Savings", ValuesList = "Savings, Checking", DataType = "AccountType", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "TransactionCount", Operator = Operator.GreaterThanOrEqualTo, Value = "5", DataType = "int", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "CreditScore", Operator = Operator.GreaterThanOrEqualTo, Value = "700", DataType = "decimal", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "LastTransactionAmount", Operator = Operator.LessThanOrEqualTo, Value = "5000", DataType = "decimal", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "AccountAgeInYears", Operator = Operator.GreaterThanOrEqualTo, Value = "1", DataType = "int", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "NumberOfOverdrafts", Operator = Operator.LessThanOrEqualTo, Value = "3" , DataType = "int", LogicalOperator = LogicalOperator.AND},
+                        new Condition { PropertyName = "AverageMonthlyDeposit", Value = "0", Operator = Operator.Between, MinValue = "500", MaxValue = "3000", DataType = "decimal", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "CreationDate", Operator = Operator.GreaterThan, Value = "2010-01-01", DataType = "DateTime", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "TransactionCount", Operator = Operator.LessThanOrEqualTo, Value = "100", DataType = "int", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "AccountAgeInYears", Operator = Operator.GreaterThanOrEqualTo, Value = "3", DataType = "int", LogicalOperator = LogicalOperator.AND },
+                        new Condition { PropertyName = "Balance", Operator = Operator.LessThan, Value = "1000", LogicalOperator = LogicalOperator.AND, DataType = "decimal", AdditionalConditions = new List<Condition>{ new Condition() { PropertyName = "CreditScore", Value = "600", Operator = Operator.LessThan, DataType = "decimal" } } },
+                        new Condition
+                        {
+                            PropertyName = "AverageMonthlyDeposit",
+                            Operator = Operator.GreaterThan,
+                            Value = "1000",
+                            DataType = "decimal",
+                            AdditionalConditions = new List<Condition>
+                            {
+                                new Condition
+                                {
+                                    PropertyName = "CreationDate",
+                                    Operator = Operator.Between,
+                                    Value = "0",
+                                    MaxValue = "11/28/2023",
+                                    MinValue = "5/28/2023",
+                                    DataType = "DateTime"
+                                }
+                            }
+                        }
+                    }
+            };
+
+            await service.CreateAsync(businessRuleDefinition);
+    }
+}
