@@ -4,16 +4,6 @@
     {
     }
 
-    public class Niki : IRulesEngineModel
-    {
-        public int MyProperty { get; set; }
-        public int MyProperty2 { get; set; }
-        public int MyProperty3 { get; set; }
-        public int MyProperty4 { get; set; }
-        public int MyProperty5 { get; set; }
-        public int MyProperty6 { get; set; }
-    }
-
     public class Account : IRulesEngineModel
     {
         public decimal Balance { get; set; }
@@ -68,6 +58,7 @@
         Individual,
         Corporate
     }
+
     public class Transaction : IRulesEngineModel
     {
         public int TransactionId { get; set; }

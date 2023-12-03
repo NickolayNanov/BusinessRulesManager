@@ -17,22 +17,22 @@ else
             <MudItem xs="12" sm="7">
                 <MudCard>
                     <MudCardContent>
-                        <MudTextField Label="Name" HelperText="Name of the rule definition"
-                                      @bind-Value="model.Name" For="@(() => model.Name)" />
-
-                        <MudTextField Label="Description" HelperText="Description for the rule definition"
-                                      @bind-Value="model.Description" For="@(() => model.Description)" />
-
                         <MudSelect T="string"
                                    Label="Object Type"
                                    @bind-Value="model.ObjectType"
                                    For="@(() => model.ObjectType)"
                                    AnchorOrigin="Origin.BottomCenter">
-                                @foreach (var type in supportedTypes)
+                            @foreach (var type in supportedTypes)
                             {
                                 <MudSelectItem Value="@(type.Name)">@type.Name</MudSelectItem>
                             }
                         </MudSelect>
+
+                        <MudTextField Label="Name" HelperText="Name of the rule definition"
+                                      @bind-Value="model.Name" For="@(() => model.Name)" />
+
+                        <MudTextField Label="Description" HelperText="Description for the rule definition"
+                                      @bind-Value="model.Description" For="@(() => model.Description)" />
                     </MudCardContent>
                     <MudCardActions>
                         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add</MudButton>

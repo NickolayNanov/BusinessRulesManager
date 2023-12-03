@@ -6,6 +6,7 @@
 @using BusinessRulesManager.Services;
 @using System.Reflection
 
+@inject NavigationManager navManager;
 @inject IBasicCrudService<BusinessRuleDefinition, int> businessRuleDefinitionService;
 @inject IBasicCrudService<Condition, int> conditionService;
 @inject IDialogService DialogService
@@ -23,11 +24,16 @@ else
                 <h3>RuleConditions for @definition.Name</h3>
             </MudPaper>
         </MudItem>
+
         <MudItem xs="12" sm="6">
             <MudPaper Class="d-flex align-right justify-center mud-width-full py-8">
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="handleAddNewClick">Add New</MudButton>
+                <MudSpacer />
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="handleGenerateLambdaClick">Generate Lambda Expression</MudButton>
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="saveDefinition">Save</MudButton>
+                <MudSpacer />
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="async () => await saveDefinitionAsync()">Save</MudButton>
+                <MudSpacer />
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="async () => await deleteDefinitionAsync()">Delete definition</MudButton>
             </MudPaper>
         </MudItem>
         
@@ -57,7 +63,7 @@ else
                 <MudTd DataLabel="Name">@context.ValuesList</MudTd>
                 <MudTd DataLabel="Name">@context.LogicalOperator</MudTd>
                 <MudTd DataLabel="Name">
-                    <MudButton OnClick="() => handleRemoveCondition(context)" Variant="Variant.Filled" Color="Color.Warning">Remove</MudButton>
+                    <MudButton OnClick="async () => await handleRemoveCondition(context)" Variant="Variant.Filled" Color="Color.Warning">Remove</MudButton>
                 </MudTd>
             </RowTemplate>
 
@@ -88,14 +94,23 @@ else
         await base.OnInitializedAsync();
     }
 
-    private void saveDefinition()
+    private async Task saveDefinitionAsync()
     {
-        businessRuleDefinitionService.UpdateAsync(definition);
+        await businessRuleDefinitionService.UpdateAsync(definition);
     }
 
-    private void handleRemoveCondition(Condition condition)
+    private async Task handleRemoveCondition(Condition condition)
     {
+        await conditionService.DeleteManyAsync(condition.AdditionalConditions);
+        await conditionService.DeleteAsync(condition.Id);
         definition.Conditions.Remove(condition);
+    }
+
+    private async Task deleteDefinitionAsync()
+    {
+        await conditionService.DeleteManyAsync(definition.Conditions.Concat(definition.Conditions.SelectMany(x => x.AdditionalConditions)));
+        await businessRuleDefinitionService.DeleteAsync(definition.Id);
+        navManager.NavigateTo("rule-definitions");
     }
 
     private void handleAddNewClick()

@@ -92,7 +92,7 @@ namespace BusinessRulesManager.Services
             return entityResult.Entity;
         }
 
-        public virtual async Task<bool> SoftDeleteAsync(TKey id)
+        public virtual async Task<bool> DeleteAsync(TKey id)
         {
             var entity = await context.Set<T>().FindAsync(id);
             context.Set<T>().Remove(entity);

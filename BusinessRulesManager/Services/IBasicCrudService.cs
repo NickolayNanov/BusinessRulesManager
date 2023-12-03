@@ -27,7 +27,7 @@ namespace BusinessRulesManager.Services
 
         Task<T> UpdateAsync(T model);
 
-        Task<bool> SoftDeleteAsync(TKey id);
+        Task<bool> DeleteAsync(TKey id);
 
         Task<int> GetTotalRecordsAsync();
 
