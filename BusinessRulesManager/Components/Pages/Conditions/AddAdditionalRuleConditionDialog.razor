@@ -1,106 +1,184 @@
 ﻿@using System.ComponentModel.DataAnnotations
 @using BusinessRulesManager.RulesEngine
+@using System.Reflection
 
 @inject IDialogService DialogService
 
-<EditForm Model="@model" OnValidSubmit="OnValidSubmit">
-    <DataAnnotationsValidator />
-    <MudGrid>
-        <MudItem xs="12" sm="7">
-            <MudCard>
-                <MudCardContent>
-                    <MudTextField Label="Property Name" HelperText="Name of the property"
-                                  @bind-Value="model.PropertyName" For="@(() => model.PropertyName)" />
-                    <MudSelect 
-                        T="Operator" 
-                        Label="Operator" 
-                        @bind-Value="model.Operator" 
-                        For="@(() => model.Operator)" 
-                        AnchorOrigin="Origin.BottomCenter"
-                        >
-                        <MudSelectItem Value="@(Operator.NotEqualTo)">@Operator.NotEqualTo.ToString()</MudSelectItem>
-                            <MudSelectItem Value="@(Operator.Equals)">@Operator.Equals.ToString()</MudSelectItem>
-                            <MudSelectItem Value="@(Operator.GreaterThan)">@Operator.GreaterThan.ToString()</MudSelectItem>
-                            <MudSelectItem Value="@(Operator.GreaterThanOrEqualTo)">@Operator.GreaterThanOrEqualTo.ToString()</MudSelectItem>
-                            <MudSelectItem Value="@(Operator.LessThan)">@Operator.LessThan.ToString()</MudSelectItem>
-                            <MudSelectItem Value="@(Operator.LessThanOrEqualTo)">@Operator.LessThanOrEqualTo.ToString()</MudSelectItem>
-                            <MudSelectItem Value="@(Operator.Between)">@Operator.Between.ToString()</MudSelectItem>
-                            <MudSelectItem Value="@(Operator.In)">@Operator.In.ToString()</MudSelectItem>
-                        </MudSelect>
-
-                        <MudTextField Label="Value" HelperText="The value for the operation"
-                                      @bind-Value="model.Value" For="@(() => model.Value)" />
-
-                        <MudTextField Label="Data Type" HelperText="The DataType of the property"
-                                      @bind-Value="model.DataType" For="@(() => model.DataType)" />
-
-                        <MudTextField Label="Min Value" HelperText="The Min Value for the property"
-                                      @bind-Value="model.MinValue" For="@(() => model.MinValue)" />
-
-                        <MudTextField Label="Max Value" HelperText="The Max Value for the property"
-                                      @bind-Value="model.MaxValue" For="@(() => model.MaxValue)" />
-
-                        <MudTextField Label="List Values" HelperText="Any helper values split with a comma; eg: 1, 2, 3, ... ,n  (mainly for in operations)"
-                                      @bind-Value="model.ValuesList" For="@(() => model.ValuesList)" />
-
-                        <MudSelect T="LogicalOperator"
-                                   Label="Logical Operator"
-                                   @bind-Value="model.LogicalOperator"
-                                   For="@(() => model.LogicalOperator)"
+@if (DefinitionObjectType is not null)
+{
+    <EditForm Model="@model" OnValidSubmit="OnValidSubmit">
+        <DataAnnotationsValidator />
+        <MudGrid>
+            <MudItem xs="12" sm="7">
+                <MudCard>
+                    <MudCardContent>
+                        <MudSelect T="string"
+                                   TextChanged="updatePropertyType"
+                                   Label="Property Name"
+                                   @bind-Value="model.PropertyName"
+                                   For="@(() => model.PropertyName)"
+                                   HelperText="Name of the property"
                                    AnchorOrigin="Origin.BottomCenter">
-                            <MudSelectItem Value="@(LogicalOperator.OR)">@LogicalOperator.OR.ToString()</MudSelectItem>
-                            <MudSelectItem Value="@(LogicalOperator.AND)">@LogicalOperator.AND.ToString()</MudSelectItem>
+                            @foreach (var propertyName in DefinitionObjectType.GetProperties().Select(x => x.Name))
+                            {
+                                <MudSelectItem Value="@(propertyName)">@propertyName</MudSelectItem>
+                            }
                         </MudSelect>
-                </MudCardContent>
-                <MudCardActions>
-                        <MudButton Disabled="true" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add Additional Conditions</MudButton>
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add</MudButton>
-                </MudCardActions>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" sm="5">
-            <MudPaper Class="pa-4 mud-height-full">
-                <MudText Typo="Typo.subtitle2">Validation Summary</MudText>
-                @if (success)
-                {
-                    <MudText Color="Color.Success">Success</MudText>
-                }
-                else
-                {
-                    <MudText Color="@Color.Error">
-                        <ValidationSummary />
-                    </MudText>
-                }
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12">
-            <MudText Typo="Typo.body2" Align="Align.Center">
-                Make sure you order them
-            </MudText>
-        </MudItem>
-    </MudGrid>
-</EditForm>
+                        <MudSelect T="Operator"
+                                   Label="Operator"
+                                   @bind-Value="model.Operator"
+                                   For="@(() => model.Operator)"
+                                   AnchorOrigin="Origin.BottomCenter">
+                            <MudSelectItem Value="@(Operator.NotEqualTo)">@Operator.NotEqualTo.ToString()</MudSelectItem>
+                                <MudSelectItem Value="@(Operator.Equals)">@Operator.Equals.ToString()</MudSelectItem>
+                                <MudSelectItem Value="@(Operator.GreaterThan)">@Operator.GreaterThan.ToString()</MudSelectItem>
+                                <MudSelectItem Value="@(Operator.GreaterThanOrEqualTo)">@Operator.GreaterThanOrEqualTo.ToString()</MudSelectItem>
+                                <MudSelectItem Value="@(Operator.LessThan)">@Operator.LessThan.ToString()</MudSelectItem>
+                                <MudSelectItem Value="@(Operator.LessThanOrEqualTo)">@Operator.LessThanOrEqualTo.ToString()</MudSelectItem>
+                                <MudSelectItem Value="@(Operator.Between)">@Operator.Between.ToString()</MudSelectItem>
+                                <MudSelectItem Value="@(Operator.In)">@Operator.In.ToString()</MudSelectItem>
+                            </MudSelect>
+
+                            <MudTextField Label="Value" HelperText="The value for the operation"
+                                          @bind-Value="model.Value" For="@(() => model.Value)" />
+
+                            <MudTextField Disabled="true" Label="Data Type" HelperText="The DataType of the property"
+                                          @bind-Value="model.DataType" For="@(() => model.DataType)" />
+
+                            <MudTextField Label="Min Value" HelperText="The Min Value for the property"
+                                          @bind-Value="model.MinValue" For="@(() => model.MinValue)" />
+
+                            <MudTextField Label="Max Value" HelperText="The Max Value for the property"
+                                          @bind-Value="model.MaxValue" For="@(() => model.MaxValue)" />
+
+                            <MudTextField Disabled="isValueListFieldHidden()" Label="List Values" HelperText="Any helper values split with a comma; eg: 1, 2, 3, ... ,n  (mainly for in operations)"
+                                          @bind-Value="model.ValuesList" For="@(() => model.ValuesList)" />
+
+                            <MudSelect T="LogicalOperator"
+                                       Label="Logical Operator"
+                                       @bind-Value="model.LogicalOperator"
+                                       For="@(() => model.LogicalOperator)"
+                                       AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem Value="@(LogicalOperator.OR)">@LogicalOperator.OR.ToString()</MudSelectItem>
+                                <MudSelectItem Value="@(LogicalOperator.AND)">@LogicalOperator.AND.ToString()</MudSelectItem>
+                            </MudSelect>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton OnClick="handleAddAdditionalConditionClick" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add Additional Conditions(@model.AdditionalConditions.Count)</MudButton>
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Add</MudButton>
+                            <MudButton OnClick="handleCloseClick" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Back</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" sm="5">
+                    <MudPaper Class="pa-4 mud-height-full">
+                        <MudText Typo="Typo.subtitle2">Validation Summary</MudText>
+                        @if (success)
+                    {
+                        <MudText Color="Color.Success">Success</MudText>
+                    }
+                    else
+                    {
+                        <MudText Color="@Color.Error">
+                            <ValidationSummary />
+                        </MudText>
+                    }
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12">
+                <MudText Typo="Typo.body2" Align="Align.Center">
+                    Make sure you order them
+                </MudText>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+}
+
 @code {
     [CascadingParameter] MudDialogInstance MudDialog { get; set; }
 
-    [Parameter] public EventCallback<Condition> AddNewlyCreatedCondition { get; set; }
+    [Parameter] public EventCallback<Condition> AddNewlyCreatedConditionDelegate { get; set; }
 
-    [Parameter] public Action<Condition, Condition> AddAdditionalConditiont { get; set; }
+    [Parameter] public Action<Condition, Condition> AddAdditionalConditiontDelegate { get; set; }
 
     [Parameter] public Condition ParentCondition { get; set; }
 
-    Condition model = new Condition();
-    Condition additionalCondition = new Condition();
-    bool success;
+    [Parameter] public Type DefinitionObjectType { get; set; }
 
+    [Parameter] public Action<string> UpdatePropertyTypeDelegate { get; set; }
+    [Parameter] public Type ParentConditionPropertyType { get; set; }
+
+    private Type PropertyType;
+    private Condition model = new Condition();
+    private Condition additionalCondition = new Condition();
+    private bool success;
+    
+    protected override void OnInitialized()
+    {
+        PropertyType = ParentConditionPropertyType;
+        model.DataType = PropertyType.Name;
+        base.OnInitialized();
+    }
+    
     private void OnValidSubmit(EditContext context)
     {
         success = true;
         var cond = (Condition)context.Model;
 
-        AddAdditionalConditiont.Invoke(ParentCondition, cond);
+        AddAdditionalConditiontDelegate.Invoke(ParentCondition, cond);
 
         StateHasChanged();
         MudDialog.Close();
     }
+
+    private void handleAddAdditionalConditionClick()
+    {
+        DialogParameters<AddAdditionalRuleConditionDialog> parameters = new();
+
+        parameters.Add(x => x.AddNewlyCreatedConditionDelegate, AddNewlyCreatedConditionDelegate);
+        parameters.Add(x => x.AddAdditionalConditiontDelegate, addAdditionalConditiontWrapper);
+        parameters.Add(x => x.DefinitionObjectType, PropertyType.IsClass ? PropertyType : DefinitionObjectType);
+        parameters.Add(x => x.ParentCondition, model);
+        parameters.Add(x => x.UpdatePropertyTypeDelegate, UpdatePropertyTypeDelegate);
+
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+
+        DialogService.Show<AddAdditionalRuleConditionDialog>("Add additional condition", parameters, options);
+    }
+
+    private void addAdditionalConditiontWrapper(Condition source, Condition newCondition)
+    {
+        AddAdditionalConditiontDelegate.Invoke(source, newCondition);
+        StateHasChanged();
+    }
+
+    private bool isValueFieldHidden()
+    {
+        var disabled = new List<Operator>
+        {
+            Operator.Between,
+            Operator.In
+        };
+
+        return disabled.Contains(model.Operator);
+    }
+
+    private bool isValueListFieldHidden()
+    {
+        var disabled = new List<Operator>
+        {
+            Operator.In
+        };
+
+        return !disabled.Contains(model.Operator);
+    }
+
+    private void updatePropertyType(string newPropertyName)
+    {
+        PropertyType = DefinitionObjectType.GetProperty(newPropertyName).PropertyType;
+        model.DataType = PropertyType.Name;
+    }
+
+    private void handleCloseClick()
+        => MudDialog.Close();
 }

@@ -16,6 +16,8 @@
         public int AccountAgeInYears { get; set; }
         public int NumberOfOverdrafts { get; set; }
         public decimal AverageMonthlyDeposit { get; set; }
+
+        public Loan Loan { get; set; }
     }
 
     public enum AccountType

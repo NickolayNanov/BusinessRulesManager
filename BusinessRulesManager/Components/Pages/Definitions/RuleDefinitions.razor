@@ -108,7 +108,7 @@ else
     private void handleAddNewClick()
     {
         DialogParameters<AddRuleDefinitionDialog> parameters = new();
-
+        
         parameters.Add(x => x.AddNewlyCreatedDefinition, 
             EventCallback.Factory.Create<BusinessRuleDefinition>(this, addNewlyCreatedDefinition));
 

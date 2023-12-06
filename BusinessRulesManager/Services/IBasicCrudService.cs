@@ -11,7 +11,7 @@ namespace BusinessRulesManager.Services
 
         Task<T> GetWithFilterAsync(Expression<Func<T, bool>> expression);
 
-        Task<IList<T>> ListAsync();
+        Task<IList<T>> ListAsync(string includeProperty = null);
 
         Task<IList<T>> ListAsync(Expression<Func<T, bool>> expression);
 

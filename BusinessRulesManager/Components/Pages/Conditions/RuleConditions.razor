@@ -5,6 +5,7 @@
 @using BusinessRulesManager.RulesEngine
 @using BusinessRulesManager.Services;
 @using System.Reflection
+@using BusinessRulesManager.Models;
 
 @inject NavigationManager navManager;
 @inject IBasicCrudService<BusinessRuleDefinition, int> businessRuleDefinitionService;
@@ -29,7 +30,7 @@ else
             <MudPaper Class="d-flex align-right justify-center mud-width-full py-8">
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="handleAddNewClick">Add New</MudButton>
                 <MudSpacer />
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="handleGenerateLambdaClick">Generate Lambda Expression</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="async () => await handleGenerateLambdaClick()">Generate Lambda Expression</MudButton>
                 <MudSpacer />
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="async () => await saveDefinitionAsync()">Save</MudButton>
                 <MudSpacer />
@@ -162,8 +163,11 @@ else
         StateHasChanged();
     }
 
-    private void handleGenerateLambdaClick()
+    private async Task handleGenerateLambdaClick()
     {
-        lambda = lambdaService.CreateLambda(new BusinessRuleDefinition { Name = "ASD", Conditions = conditions  });
+        lambda = lambdaService.CreateLambda(new BusinessRuleDefinition { Name = "ASD", Conditions = conditions });
+        Func<object, bool> compiledMethod = await lambdaService.BuildRuleAsync(definition, "123", objectType);
+
+        bool success = compiledMethod(Activator.CreateInstance(objectType));
     }
 }

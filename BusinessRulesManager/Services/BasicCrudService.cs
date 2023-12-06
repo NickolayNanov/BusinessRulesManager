@@ -64,9 +64,9 @@ namespace BusinessRulesManager.Services
             return mapper.Map<TModel>(await context.Set<T>().SingleOrDefaultAsync(expression));
         }
 
-        public virtual async Task<IList<T>> ListAsync()
+        public virtual async Task<IList<T>> ListAsync(string includeProperty = null)
         {
-            return await Query().ToListAsync();
+            return includeProperty is not null ? await Query().Include(includeProperty).ToListAsync() : await Query().ToListAsync();
         }
 
         public virtual async Task<IList<TModel>> ListAsync<TModel>()

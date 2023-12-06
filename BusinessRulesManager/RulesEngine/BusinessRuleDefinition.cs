@@ -16,6 +16,6 @@ namespace BusinessRulesManager.RulesEngine
         [Required]
         public string ObjectType { get; set; }
 
-        public List<Condition> Conditions { get; set; }
+        public List<Condition> Conditions { get; set; } = new List<Condition>();
     }
 }
