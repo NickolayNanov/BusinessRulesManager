@@ -24,6 +24,7 @@ builder.Services.AddMudServices();
 builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());
 
 builder.Services.AddTransient(typeof(IBasicCrudService<,>), typeof(BasicCrudService<,>));
+builder.Services.AddTransient<IBusinessRuleDefinitionService, BusinessRuleDefinitionService>();
 builder.Services.AddTransient(typeof(ILambdaService), typeof(LambdaService));
 
 builder.Services.AddAuthentication(options =>

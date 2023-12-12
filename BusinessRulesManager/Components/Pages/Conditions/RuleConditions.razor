@@ -8,12 +8,12 @@
 @using BusinessRulesManager.Models;
 
 @inject NavigationManager navManager;
-@inject IBasicCrudService<BusinessRuleDefinition, int> businessRuleDefinitionService;
+@inject IBusinessRuleDefinitionService businessRuleDefinitionService;
 @inject IBasicCrudService<Condition, int> conditionService;
 @inject IDialogService DialogService
 @inject ILambdaService lambdaService
 
-@if (conditions is null && definition is not null)
+@if (conditions is null || definition is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -165,7 +165,7 @@ else
 
     private async Task handleGenerateLambdaClick()
     {
-        lambda = lambdaService.CreateLambda(new BusinessRuleDefinition { Name = "ASD", Conditions = conditions });
+        // lambda = lambdaService.CreateLambda(new BusinessRuleDefinition { Name = "ASD", Conditions = conditions });
         Func<object, bool> compiledMethod = await lambdaService.BuildRuleAsync(definition, "123", objectType);
 
         bool success = compiledMethod(Activator.CreateInstance(objectType));

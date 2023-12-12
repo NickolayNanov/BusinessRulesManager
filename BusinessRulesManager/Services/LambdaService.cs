@@ -1,5 +1,6 @@
 ﻿using BusinessRulesManager.Models;
 using BusinessRulesManager.RulesEngine;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -64,15 +65,44 @@ namespace BusinessRulesManager.Services
 
         private Expression<Func<object, bool>> CreateLambdaExpression(List<Condition> conditions, Type objectType)
         {
-            var parameter = Expression.Parameter(typeof(object), "x");
+            int initialParameterCounter = 1;
+
+            var parameter = Expression.Parameter(typeof(object), $"x{initialParameterCounter}");
             var castedParameter = Expression.Convert(parameter, objectType);
             Expression expr = null;
             LogicalOperator logcalOperator;
+
             foreach (var condition in conditions.OrderBy(x => x.Priority))
             {
                 ValidateCondition(condition, objectType); // Validate each rule
 
-                Expression binaryExpr = BuildExpressionForCondition(castedParameter, condition);
+
+                //
+
+                string propertyName = condition.PropertyName;
+                Type propertyType = objectType.GetProperty(propertyName).PropertyType;
+                bool isClass = propertyType.IsClass;
+                bool isCollection = propertyType.IsAssignableTo(typeof(IEnumerable<>));
+
+                Expression binaryExpr = null;
+
+                if (isClass)
+                {
+                    var newParameter = Expression.Parameter(typeof(object), $"x{++initialParameterCounter}");
+                    var newCastedParameter = Expression.Convert(newParameter, propertyType);
+                    binaryExpr = BuildExpressionForCondition(newCastedParameter, condition);
+                }
+                else if (isCollection)
+                {
+
+                }
+                else
+                {
+                    binaryExpr = BuildExpressionForCondition(castedParameter, condition);
+                }
+
+                //
+                
                 var op = condition.LogicalOperator;
                 
                 if (conditions.IndexOf(condition) == 0)
@@ -84,7 +114,7 @@ namespace BusinessRulesManager.Services
                     logcalOperator = conditions.Where(c => c.Priority < condition.Priority).OrderBy(x => x.Priority).Last().LogicalOperator;
                 }
 
-                if (condition.AdditionalConditions != null && condition.AdditionalConditions.Count != 0)
+                if (condition.AdditionalConditions != null && condition.AdditionalConditions.Count != 0 && !isClass)
                 {
                     List<Expression> additionalExpressions
                     = condition.AdditionalConditions.Select(cond => BuildExpressionForCondition(castedParameter, cond)).ToList();
@@ -113,8 +143,19 @@ namespace BusinessRulesManager.Services
 
         private Expression BuildExpressionForCondition(Expression parameter, Condition condition)
         {
-            var member = Expression.Property(parameter, condition.PropertyName);
-            var convertedValue = ConvertToType(condition.Value, member.Type);
+            MemberExpression member;
+            object convertedValue;
+
+            if (condition.AdditionalConditions is not null && condition.AdditionalConditions.Any())
+            {
+                member = Expression.Property(parameter, condition?.AdditionalConditions[0].PropertyName);
+                convertedValue = ConvertToType(condition?.AdditionalConditions[0].Value, member.Type);
+            }
+            else
+            {
+                member = Expression.Property(parameter, condition.PropertyName);
+                convertedValue = ConvertToType(condition.Value, member.Type);
+            }
 
             return condition.Operator switch
             {
@@ -125,6 +166,7 @@ namespace BusinessRulesManager.Services
                 Operator.Equals => Expression.Equal(member, Expression.Constant(convertedValue)),
                 Operator.In => BuildInExpression(member, condition),
                 Operator.Between => BuildBetweenExpression(member, condition),
+                Operator.NotEqualTo => Expression.NotEqual(member, Expression.Constant(convertedValue)),
                 _ => null,
             };
         }

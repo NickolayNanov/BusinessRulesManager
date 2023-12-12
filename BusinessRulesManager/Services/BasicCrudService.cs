@@ -51,7 +51,7 @@ namespace BusinessRulesManager.Services
 
         public virtual async Task<TModel> GetByIdAsync<TModel>(TKey id)
         {
-            return mapper.Map<TModel>(await context.Set<T>().FindAsync(id));
+            return mapper.Map<TModel>(await GetByIdAsync(id));
         }
 
         public virtual async Task<T> GetWithFilterAsync(Expression<Func<T, bool>> expression)
