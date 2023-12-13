@@ -1,9 +1,8 @@
 ﻿using BusinessRulesManager.Models;
 using BusinessRulesManager.RulesEngine;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
-using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text;
 
 namespace BusinessRulesManager.Services
 {
@@ -12,6 +11,8 @@ namespace BusinessRulesManager.Services
         string CreateLambda(BusinessRuleDefinition businessRuleDefinition);
 
         Task<Func<object, bool>> BuildRuleAsync(BusinessRuleDefinition definition, string identifier, Type type);
+
+        Task<string> CreateLambdaExpressionAsString(BusinessRuleDefinition businessRuleDefinition);
     }
 
     public class LambdaService : ILambdaService
@@ -76,9 +77,6 @@ namespace BusinessRulesManager.Services
             {
                 ValidateCondition(condition, objectType); // Validate each rule
 
-
-                //
-
                 string propertyName = condition.PropertyName;
                 Type propertyType = objectType.GetProperty(propertyName).PropertyType;
                 bool isClass = propertyType.IsClass;
@@ -101,10 +99,8 @@ namespace BusinessRulesManager.Services
                     binaryExpr = BuildExpressionForCondition(castedParameter, condition);
                 }
 
-                //
-                
                 var op = condition.LogicalOperator;
-                
+
                 if (conditions.IndexOf(condition) == 0)
                 {
                     logcalOperator = condition.LogicalOperator;
@@ -229,6 +225,114 @@ namespace BusinessRulesManager.Services
             {
                 throw new InvalidOperationException($"Error converting value: {value} to type: {targetType.ToString()}", ex);
             }
+        }
+
+        public async Task<string> CreateLambdaExpressionAsString(BusinessRuleDefinition businessRuleDefinition)
+        {
+            return await Task.Run(() =>
+            {
+                var stringBuilder = new StringBuilder();
+                stringBuilder.Append("x => ");
+
+                for (int i = 0; i < businessRuleDefinition.Conditions.Count; i++)
+                {
+                    Condition condition = businessRuleDefinition.Conditions[i];
+
+                    string expressionStr = $"({GenerateConditionString(condition, businessRuleDefinition.ObjectType)})";
+                    string logicalOperator = condition.LogicalOperator == LogicalOperator.AND ? " AND " : " OR ";
+
+                    if (i < businessRuleDefinition.Conditions.Count - 1)
+                    {
+                        expressionStr += logicalOperator;
+                    }
+
+                    stringBuilder.Append(expressionStr);
+                }
+
+                return stringBuilder.ToString();
+            });
+        }
+
+        private string GenerateConditionString(Condition condition, string objectType)
+        {
+            StringBuilder localSB = new();
+
+            bool additionalConditionsExist = condition.AdditionalConditions is not null && condition.AdditionalConditions.Count > 0;
+
+            var propertyType = Assembly.GetExecutingAssembly().GetTypes().FirstOrDefault(x => x.Name == condition.DataType);
+
+            bool isClass = propertyType.IsClass;
+
+            if (isClass && additionalConditionsExist)
+            {
+                foreach (var additionalCondition in condition.AdditionalConditions)
+                {
+                    var str = $"x.{condition.PropertyName}.{additionalCondition.PropertyName} {GetOperatorString(additionalCondition.Operator)} {FormatValue(additionalCondition.Value, additionalCondition.DataType)}";
+                    localSB.Append(str);
+                    return localSB.ToString();
+                }
+            }
+            else
+            {
+                AppendSimplePropertyExpression(condition, localSB);
+            }
+
+            if (additionalConditionsExist)
+            {
+                foreach (var additionalCondition in condition.AdditionalConditions)
+                {
+                    bool isLast = condition.AdditionalConditions.IndexOf(additionalCondition) == condition.AdditionalConditions.Count - 1;
+                    AppendSimpleAdditionalConditionExpression(isLast, localSB, additionalCondition, objectType);
+                }
+            }
+
+            string returnString = localSB.ToString();
+            localSB.Clear(); // mby delete?
+            return returnString;
+        }
+
+        private void AppendSimpleAdditionalConditionExpression(bool isLast, StringBuilder localSB, Condition additionalCondition, string objectType)
+        {
+            localSB.Append(" AND ");
+            string additionalConditionStr = GenerateConditionString(additionalCondition, objectType);
+            localSB.Append(additionalConditionStr);
+
+            if (!isLast)
+            {
+                localSB.Append(" AND ");
+            }
+        }
+
+        private void AppendSimplePropertyExpression(Condition condition, StringBuilder localSB)
+        {
+            localSB.Append('(');
+
+            string currentExpressionString = $"x.{condition.PropertyName} {GetOperatorString(condition.Operator)} {FormatValue(condition.Value, condition.DataType)}";
+            localSB.Append(currentExpressionString);
+
+            localSB.Append(')');
+        }
+
+        private string GetOperatorString(Operator op)
+        {
+            return op switch
+            {
+                Operator.Equals => "==",
+                Operator.NotEqualTo => "!=",
+                Operator.GreaterThan => ">",
+                Operator.LessThan => "<",
+                Operator.GreaterThanOrEqualTo => ">=",
+                Operator.LessThanOrEqualTo => "<=",
+                // Additional handling may be needed for 'In' and 'Between' operators
+                _ => throw new NotImplementedException($"Operator {op} is not implemented."),
+            };
+        }
+
+        private string FormatValue(string value, string dataType)
+        {
+            // Logic to format value based on dataType
+            // Example: Wrap string values in quotes
+            return dataType == "string" ? $"\"{value}\"" : value;
         }
     }
 }

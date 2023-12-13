@@ -165,7 +165,7 @@ else
 
     private async Task handleGenerateLambdaClick()
     {
-        // lambda = lambdaService.CreateLambda(new BusinessRuleDefinition { Name = "ASD", Conditions = conditions });
+        lambda = await lambdaService.CreateLambdaExpressionAsString(definition);
         Func<object, bool> compiledMethod = await lambdaService.BuildRuleAsync(definition, "123", objectType);
 
         bool success = compiledMethod(Activator.CreateInstance(objectType));
