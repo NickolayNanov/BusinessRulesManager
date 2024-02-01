@@ -99,7 +99,7 @@
 
     [Parameter] public EventCallback<Condition> AddNewlyCreatedConditionDelegate { get; set; }
 
-    [Parameter] public Action<Condition, Condition> AddAdditionalConditiontDelegate { get; set; }
+    [Parameter] public Action<Condition, Condition, bool> AddAdditionalConditiontDelegate { get; set; }
 
     [Parameter] public Condition ParentCondition { get; set; }
 
@@ -112,20 +112,22 @@
     private Condition model = new Condition();
     private Condition additionalCondition = new Condition();
     private bool success;
-    
+
     protected override void OnInitialized()
     {
         PropertyType = ParentConditionPropertyType;
         model.DataType = PropertyType.Name;
         base.OnInitialized();
     }
-    
+
     private void OnValidSubmit(EditContext context)
     {
         success = true;
         var cond = (Condition)context.Model;
 
-        AddAdditionalConditiontDelegate.Invoke(ParentCondition, cond);
+        bool isNested = ParentConditionPropertyType.IsClass;
+
+        AddAdditionalConditiontDelegate.Invoke(ParentCondition, cond, isNested);
 
         StateHasChanged();
         MudDialog.Close();
@@ -140,15 +142,32 @@
         parameters.Add(x => x.DefinitionObjectType, PropertyType.IsClass ? PropertyType : DefinitionObjectType);
         parameters.Add(x => x.ParentCondition, model);
         parameters.Add(x => x.UpdatePropertyTypeDelegate, UpdatePropertyTypeDelegate);
+        parameters.Add(x => x.ParentConditionPropertyType, ParentConditionPropertyType);
 
         var options = new DialogOptions { CloseOnEscapeKey = true };
 
         DialogService.Show<AddAdditionalRuleConditionDialog>("Add additional condition", parameters, options);
     }
 
-    private void addAdditionalConditiontWrapper(Condition source, Condition newCondition)
+    private void addAdditionalCondition(Condition parentCondition, Condition childCondition, bool isNested)
     {
-        AddAdditionalConditiontDelegate.Invoke(source, newCondition);
+        if (isNested)
+        {
+            parentCondition.IsNested = true;
+            parentCondition.NestedConditions.Add(childCondition);
+        }
+        else
+        {
+            parentCondition.AdditionalConditions.Add(childCondition);
+
+        }
+
+        StateHasChanged();
+    }
+
+    private void addAdditionalConditiontWrapper(Condition source, Condition newCondition, bool isNested)
+    {
+        addAdditionalCondition(source, newCondition, isNested);
         StateHasChanged();
     }
 

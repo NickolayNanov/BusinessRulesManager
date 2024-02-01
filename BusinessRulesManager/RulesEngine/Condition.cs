@@ -1,5 +1,6 @@
 ﻿using BusinessRulesManager.Data;
 using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 
 namespace BusinessRulesManager.RulesEngine
 {
@@ -33,6 +34,10 @@ namespace BusinessRulesManager.RulesEngine
         public Condition ParentCondition { get; set; }
 
         public int IdBusinessRuleDefinition { get; set; }
+
+        public bool IsNested { get; set; }
+
+        public List<Condition> NestedConditions { get; set; } = new List<Condition>();
 
         public BusinessRuleDefinition BusinessRuleDefinition { get; set; }
 

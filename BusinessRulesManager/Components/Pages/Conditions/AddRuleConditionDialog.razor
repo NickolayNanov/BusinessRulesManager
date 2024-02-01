@@ -98,7 +98,7 @@
 
     [Parameter] public EventCallback<Condition> AddNewlyCreatedCondition { get; set; }
 
-    [Parameter] public Action<Condition, Condition> AddAdditionalConditiont { get; set; }
+    [Parameter] public Action<Condition, Condition, bool> AddAdditionalConditiont { get; set; }
 
     [Parameter] public Type DefinitionObjectType { get; set; }
 
@@ -150,9 +150,9 @@
         return !disabled.Contains(model.Operator);
     }
 
-    private void addAdditionalConditiontWrapper(Condition source, Condition newCondition)
+    private void addAdditionalConditiontWrapper(Condition source, Condition newCondition, bool isNested)
     {
-        AddAdditionalConditiont.Invoke(source, newCondition);
+        AddAdditionalConditiont.Invoke(source, newCondition, isNested);
         StateHasChanged();
     }
 
@@ -172,5 +172,5 @@
     }
 
     private void handleCloseClick()
-        => MudDialog.Close(); 
+        => MudDialog.Close();
 }

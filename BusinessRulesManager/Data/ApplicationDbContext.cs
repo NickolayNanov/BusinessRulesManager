@@ -16,9 +16,10 @@ namespace BusinessRulesManager.Data
                 .Navigation(x => x.Conditions)
                 .AutoInclude();
 
-            //builder.Entity<Condition>()
-            //    .Navigation(x => x.AdditionalConditions)
-            //    .AutoInclude();
+            builder.Entity<Condition>()
+                .HasOne(x => x.ParentCondition)
+                    .WithMany(x => x.AdditionalConditions)
+                    .HasForeignKey(x => x.ParentConditionId);
 
             base.OnModelCreating(builder);
         }

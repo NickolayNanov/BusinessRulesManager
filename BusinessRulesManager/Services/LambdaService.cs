@@ -18,6 +18,7 @@ namespace BusinessRulesManager.Services
     public class LambdaService : ILambdaService
     {
         private readonly Dictionary<string, Func<object, bool>> cache = new();
+        private readonly int MAX_RECURSION_DEPTH = 50;
 
         public string CreateLambda(BusinessRuleDefinition businessRuleDefinition)
         {
@@ -233,12 +234,15 @@ namespace BusinessRulesManager.Services
             {
                 var stringBuilder = new StringBuilder();
                 stringBuilder.Append("x => ");
+                Stack<string> propertyNames = new();
 
                 for (int i = 0; i < businessRuleDefinition.Conditions.Count; i++)
                 {
                     Condition condition = businessRuleDefinition.Conditions[i];
 
-                    string expressionStr = $"({GenerateConditionString(condition, businessRuleDefinition.ObjectType)})";
+                    propertyNames.Push(condition.PropertyName);
+
+                    string expressionStr = $"({GenerateConditionString(condition, businessRuleDefinition.ObjectType, propertyNames)})";
                     string logicalOperator = condition.LogicalOperator == LogicalOperator.AND ? " AND " : " OR ";
 
                     if (i < businessRuleDefinition.Conditions.Count - 1)
@@ -247,54 +251,49 @@ namespace BusinessRulesManager.Services
                     }
 
                     stringBuilder.Append(expressionStr);
+                    propertyNames.Pop();
                 }
 
                 return stringBuilder.ToString();
             });
         }
 
-        private string GenerateConditionString(Condition condition, string objectType)
+        private string GenerateConditionString(Condition condition, string objectType, Stack<string> propertyNames, int depth = 0)
         {
-            StringBuilder localSB = new();
-
-            bool additionalConditionsExist = condition.AdditionalConditions is not null && condition.AdditionalConditions.Count > 0;
-
-            var propertyType = Assembly.GetExecutingAssembly().GetTypes().FirstOrDefault(x => x.Name == condition.DataType);
-
-            bool isClass = propertyType.IsClass;
-
-            if (isClass && additionalConditionsExist)
+            if (condition == null || depth > MAX_RECURSION_DEPTH)
             {
-                foreach (var additionalCondition in condition.AdditionalConditions)
+                return ""; // Handle base case for recursion and prevent stack overflow
+            }
+
+            StringBuilder localSB = new StringBuilder();
+
+            if (condition.IsNested && condition.NestedConditions.Any())
+            {
+                foreach (var nestedCondition in condition.NestedConditions)
                 {
-                    var str = $"x.{condition.PropertyName}.{additionalCondition.PropertyName} {GetOperatorString(additionalCondition.Operator)} {FormatValue(additionalCondition.Value, additionalCondition.DataType)}";
-                    localSB.Append(str);
-                    return localSB.ToString();
+                    propertyNames.Push(nestedCondition.PropertyName);
+                    localSB.Append(GenerateConditionString(nestedCondition, objectType, propertyNames, depth + 1));
+                    propertyNames.Pop();
                 }
             }
             else
             {
-                AppendSimplePropertyExpression(condition, localSB);
+                localSB.Append(GenerateSimpleOrComplexPropertyExpression(condition, propertyNames));
             }
 
-            if (additionalConditionsExist)
-            {
-                foreach (var additionalCondition in condition.AdditionalConditions)
-                {
-                    bool isLast = condition.AdditionalConditions.IndexOf(additionalCondition) == condition.AdditionalConditions.Count - 1;
-                    AppendSimpleAdditionalConditionExpression(isLast, localSB, additionalCondition, objectType);
-                }
-            }
+            HandleAdditionalConditions(condition, objectType, propertyNames, localSB, depth);
 
-            string returnString = localSB.ToString();
-            localSB.Clear(); // mby delete?
-            return returnString;
+            return localSB.ToString();
         }
 
-        private void AppendSimpleAdditionalConditionExpression(bool isLast, StringBuilder localSB, Condition additionalCondition, string objectType)
+        private string DoNestedConditions(Stack<string> propertyNames, Condition nestedCondition, int depth)
         {
-            localSB.Append(" AND ");
-            string additionalConditionStr = GenerateConditionString(additionalCondition, objectType);
+            return GenerateConditionString(nestedCondition, nestedCondition.BusinessRuleDefinition.ObjectType, propertyNames, depth + 1);
+        }
+
+        private void AppendSimpleAdditionalConditionExpression(bool isLast, StringBuilder localSB, Condition additionalCondition, string objectType, Stack<string> propertyNames, int depth)
+        {
+            string additionalConditionStr = GenerateConditionString(additionalCondition, objectType, propertyNames, depth);
             localSB.Append(additionalConditionStr);
 
             if (!isLast)
@@ -303,14 +302,36 @@ namespace BusinessRulesManager.Services
             }
         }
 
-        private void AppendSimplePropertyExpression(Condition condition, StringBuilder localSB)
+        private string GenerateSimpleOrComplexPropertyExpression(Condition condition, Stack<string> propertyNames)
         {
-            localSB.Append('(');
+            string expressionString = condition.IsNested ?
+                $"x.{string.Join('.', propertyNames.Reverse())} {GetOperatorString(condition.Operator)} {FormatValue(condition.Value, condition.DataType)}" :
+                $"x.{condition.PropertyName} {GetOperatorString(condition.Operator)} {FormatValue(condition.Value, condition.DataType)}";
+            return expressionString;
+        }
 
-            string currentExpressionString = $"x.{condition.PropertyName} {GetOperatorString(condition.Operator)} {FormatValue(condition.Value, condition.DataType)}";
-            localSB.Append(currentExpressionString);
+        private void HandleAdditionalConditions(Condition condition, string objectType, Stack<string> propertyNames, StringBuilder localSB, int depth)
+        {
+            if (condition.AdditionalConditions != null && condition.AdditionalConditions.Any())
+            {
+                foreach (var additionalCondition in condition.AdditionalConditions)
+                {
+                    bool isLast = condition.AdditionalConditions.IndexOf(additionalCondition) == condition.AdditionalConditions.Count - 1;
+                    AppendSimpleAdditionalConditionExpression(isLast, localSB, additionalCondition, objectType, propertyNames, depth);
+                }
+            }
+        }
 
-            localSB.Append(')');
+        private string GenerateSimplePropertyExpression(Condition condition)
+        {
+            string simpleExpressionString = $"x.{condition.PropertyName} {GetOperatorString(condition.Operator)} {FormatValue(condition.Value, condition.DataType)}";
+            return simpleExpressionString;
+        }
+
+        private string GenerateComplexPropertyExpression(Stack<string> propertyNames, Condition condition)
+        {
+            string complexExpressionString = $"x.{string.Join('.', propertyNames.Reverse())} {GetOperatorString(condition.Operator)} {FormatValue(condition.Value, condition.DataType)}";
+            return complexExpressionString;
         }
 
         private string GetOperatorString(Operator op)
@@ -332,7 +353,7 @@ namespace BusinessRulesManager.Services
         {
             // Logic to format value based on dataType
             // Example: Wrap string values in quotes
-            return dataType == "string" ? $"\"{value}\"" : value;
+            return dataType == typeof(string).Name ? $"\"{value}\"" : value;
         }
     }
 }

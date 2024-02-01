@@ -36,6 +36,8 @@
         public bool IsSecured { get; set; }
         public int CreditScoreAtTimeOfApplication { get; set; }
         public decimal MonthlyRepaymentAmount { get; set; }
+
+        public Customer Customer { get; set; }
     }
 
     public enum LoanType
@@ -52,6 +54,7 @@
         public string Email { get; set; }
         public string PhoneNumber { get; set; }
         public CustomerType Type { get; set; }
+        public Transaction Transaction { get; set; }
         public List<Account> Accounts { get; set; }
     }
 

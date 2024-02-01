@@ -37,7 +37,7 @@ else
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="async () => await deleteDefinitionAsync()">Delete definition</MudButton>
             </MudPaper>
         </MudItem>
-        
+
     </MudGrid>
     <MudTable T="Condition" Items="@conditions" Hover="true" Breakpoint="Breakpoint.Sm" @ref="mudTable"
               RowClass="cursor-pointer" RowClassFunc="@SelectedRowClassFunc" OnRowClick="RowClickEvent">
@@ -72,7 +72,7 @@ else
 
     <h3>Lambda:</h3>
     <p>@lambda</p>
-    
+
 }
 
 @code {
@@ -157,17 +157,27 @@ else
         StateHasChanged();
     }
 
-    private void addAdditionalCondition(Condition parentCondition, Condition additionalCondition)
+    private void addAdditionalCondition(Condition parentCondition, Condition childCondition, bool isNested)
     {
-        parentCondition.AdditionalConditions.Add(additionalCondition);
+        if (isNested)
+        {
+            parentCondition.IsNested = true;
+            parentCondition.NestedConditions.Add(childCondition);
+        }
+        else
+        {
+            parentCondition.AdditionalConditions.Add(childCondition);
+
+        }
+
         StateHasChanged();
     }
 
     private async Task handleGenerateLambdaClick()
     {
         lambda = await lambdaService.CreateLambdaExpressionAsString(definition);
-        Func<object, bool> compiledMethod = await lambdaService.BuildRuleAsync(definition, "123", objectType);
+        // Func<object, bool> compiledMethod = await lambdaService.BuildRuleAsync(definition, "123", objectType);
 
-        bool success = compiledMethod(Activator.CreateInstance(objectType));
+        // bool success = compiledMethod(Activator.CreateInstance(objectType));
     }
 }
